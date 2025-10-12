@@ -8,6 +8,9 @@ import { Toaster } from "react-hot-toast";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 // ✅ Vercel Analytics + Speed Insights
 import { Analytics } from "@vercel/analytics/next";
+import SwUpdater from "./components/SwUpdater";
+// …
+
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
-        <Navbar />
+        <Navbar /><SwUpdater />
         {children}
 
         {/* Toasts */}
