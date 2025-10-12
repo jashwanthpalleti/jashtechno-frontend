@@ -2,9 +2,12 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Inter } from "next/font/google";
-import Navbar from "./components/Navbar";   // ⬅️ client component is OK inside layout
-import Footer from "./components/Footer";   // ⬅️ optional
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import { Toaster } from "react-hot-toast";
+import { SpeedInsights } from "@vercel/speed-insights/next"
+// ✅ Vercel Analytics + Speed Insights
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,11 +25,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
-        
-        <Navbar />      {/* ⬅️ shown on every page */}
+        <Navbar />
         {children}
+
+        {/* Toasts */}
         <Toaster position="top-center" reverseOrder={false} />
-        <Footer />      {/* ⬅️ optional global footer */}
+
+        {/* 📈 Analytics & performance (place near end of body) */}
+        <Analytics />
+        <SpeedInsights />
+
+        <Footer />
       </body>
     </html>
   );
