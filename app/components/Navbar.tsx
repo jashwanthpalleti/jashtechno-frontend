@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   const links = [
     { label: "Home", href: "/" },
@@ -16,7 +17,12 @@ export default function Navbar() {
     { label: "About Us", href: "/about" },
   ];
 
-  const goContact = () => setOpen(false); // close menu then Next does the nav
+  // Force route to /contact to avoid any stray rewrites
+  const goContact = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    setOpen(false);
+    router.push("/contact");
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-sky-600/90 backdrop-blur border-b border-white/10">
@@ -41,9 +47,7 @@ export default function Navbar() {
               <li key={l.href}>
                 <Link
                   href={l.href}
-                  className={`font-medium transition ${
-                    active ? "text-white" : "text-white/90 hover:text-white"
-                  }`}
+                  className={`font-medium transition ${active ? "text-white" : "text-white/90 hover:text-white"}`}
                 >
                   {l.label}
                 </Link>
@@ -90,9 +94,7 @@ export default function Navbar() {
                     href={l.href}
                     onClick={() => setOpen(false)}
                     className={`block rounded-md px-3 py-2 transition ${
-                      active
-                        ? "bg-sky-700 text-white"
-                        : "text-white/90 hover:bg-sky-700 hover:text-white"
+                      active ? "bg-sky-700 text-white" : "text-white/90 hover:bg-sky-700 hover:text-white"
                     }`}
                   >
                     {l.label}
