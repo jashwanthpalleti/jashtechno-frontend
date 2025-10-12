@@ -16,6 +16,8 @@ export default function Navbar() {
     { label: "About Us", href: "/about" },
   ];
 
+  const goContact = () => setOpen(false); // close menu then Next does the nav
+
   return (
     <header className="sticky top-0 z-50 bg-sky-600/90 backdrop-blur border-b border-white/10">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2">
@@ -51,6 +53,7 @@ export default function Navbar() {
           <li>
             <Link
               href="/contact"
+              onClick={goContact}
               className="ml-2 rounded-md bg-yellow-400 px-4 py-2 font-semibold text-black shadow hover:bg-yellow-300 transition"
             >
               Get a Website
@@ -98,7 +101,7 @@ export default function Navbar() {
               })}
               <Link
                 href="/contact"
-                onClick={() => setOpen(false)}
+                onClick={goContact}
                 className="mt-2 inline-block rounded-md bg-yellow-400 px-4 py-2 font-semibold text-black shadow hover:bg-yellow-300 transition"
               >
                 Get a Website
