@@ -5,10 +5,11 @@ import { Inter } from "next/font/google";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { Toaster } from "react-hot-toast";
+import SwUpdater from "./components/SwUpdater";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 // ✅ Vercel Analytics + Speed Insights
 import { Analytics } from "@vercel/analytics/next";
-import SwUpdater from "./components/SwUpdater";
+
 // …
 
 
@@ -28,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
-        <Navbar /><SwUpdater />
+        <Navbar /> <SwUpdater />
         {children}
 
         {/* Toasts */}
