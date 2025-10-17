@@ -1,155 +1,147 @@
 // app/api/contact/route.ts
 import { NextResponse } from "next/server";
+import nodemailer from "nodemailer";
 
-export const runtime = "nodejs";          // avoid Edge limits
-export const dynamic = "force-dynamic";   // never cache this route
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-// --- config ---
-const API_BASE = process.env.API_BASE_URL; // MUST be set on Vercel
-const REQUEST_TIMEOUT_MS = 10000;
-const MAX_BODY_BYTES = 16 * 1024;
-
-// --- utils ---
-function requireApiBase() {
-  if (!API_BASE) {
-    const err: any = new Error("Missing API_BASE_URL (server env)");
-    err.status = 500;
-    throw err;
-  }
-  return API_BASE;
+/* ------------------------- Helpers ------------------------- */
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+function clampLen(s: string, max: number) {
+  return s.length > max ? s.slice(0, max) : s;
+}
+async function safeJson<T = any>(req: Request): Promise<T | null> {
+  try { return (await req.json()) as T; } catch { return null; }
 }
 
-function fetchWithTimeout(url: string, init: RequestInit = {}, ms = REQUEST_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), ms);
-  const p = fetch(url, { ...init, signal: controller.signal });
-  return p.finally(() => clearTimeout(id));
+/* --------------------------- CORS --------------------------- */
+export async function OPTIONS() {
+  const res = new NextResponse(null, { status: 204 });
+  res.headers.set("Access-Control-Allow-Origin", "*");
+  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.headers.set("Access-Control-Allow-Headers", "content-type, authorization");
+  res.headers.set("Access-Control-Max-Age", "86400");
+  return res;
 }
 
-async function readJsonSafe(res: Response) {
-  const raw = await res.text();
-  try { return { parsed: raw ? JSON.parse(raw) : null, raw }; }
-  catch { return { parsed: null, raw }; }
-}
+/* --------------------------- GET --------------------------- */
+export async function GET() {
+  const envOk =
+    !!process.env.SMTP_HOST &&
+    !!process.env.SMTP_USER &&
+    !!process.env.SMTP_PASS &&
+    !!process.env.CONTACT_TO_EMAIL;
 
-function isValidEmail(s: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
-}
-
-async function readBodyLimited(req: Request, limit = MAX_BODY_BYTES) {
-  const len = Number(req.headers.get("content-length") || 0);
-  if (len && len > limit) {
-    const e: any = new Error(`Payload too large (${len} > ${limit})`);
-    e.status = 413;
-    throw e;
-  }
-  // If Content-Length is missing, still guard by actually measuring
-  const text = await req.text();
-  if (!len && text.length > limit) {
-    const e: any = new Error(`Payload too large (${text.length} > ${limit})`);
-    e.status = 413;
-    throw e;
-  }
-  try {
-    return JSON.parse(text || "{}");
-  } catch {
-    const e: any = new Error("Invalid JSON body");
-    e.status = 400;
-    throw e;
-  }
-}
-
-function noStore(json: any, init?: { status?: number }) {
-  return NextResponse.json(json, {
-    status: init?.status ?? 200,
-    headers: { "cache-control": "no-store" },
+  return NextResponse.json({
+    service: "contact-api",
+    ok: envOk,
+    version: "smtp-v3", // 👈 new tag so we can confirm it’s the right file
   });
 }
 
-// --- GET: probe backend & show which base is active ---
-export async function GET() {
-  try {
-    const base = requireApiBase();
-    const r = await fetchWithTimeout(`${base}/`, {
-      cache: "no-store",
-      headers: { "User-Agent": "jashtechno-contact-probe" },
-    });
-    const { parsed, raw } = await readJsonSafe(r);
-    return noStore(
-      { ok: r.ok, base, health: parsed ?? raw ?? "ok" },
-      { status: r.status }
-    );
-  } catch (e: any) {
-    return noStore(
-      { detail: "Health check failed", error: String(e?.message || e) },
-      { status: Number(e?.status) || 502 }
-    );
-  }
-}
 
-// Optional: HEAD for uptime monitors
-export async function HEAD() {
-  try {
-    const base = requireApiBase();
-    const r = await fetchWithTimeout(`${base}/`, { cache: "no-store", method: "GET" });
-    return new NextResponse(null, {
-      status: r.ok ? 200 : r.status,
-      headers: { "cache-control": "no-store" },
-    });
-  } catch {
-    return new NextResponse(null, { status: 502, headers: { "cache-control": "no-store" } });
-  }
-}
+/* --------------------------- POST --------------------------- */
+type Payload = {
+  name?: string;
+  email?: string;
+  category?: string;
+  message?: string;
+  website?: string; // honeypot
+};
 
-// --- POST: proxy to Django /api/contact/ ---
 export async function POST(req: Request) {
-  try {
-    const base = requireApiBase();
+  const body = (await safeJson<Payload>(req)) || {};
+  const name = clampLen((body.name ?? "").trim(), 100);
+  const email = clampLen((body.email ?? "").trim(), 120);
+  const category = clampLen((body.category ?? "").trim(), 60);
+  const message = clampLen((body.message ?? "").trim(), 3000);
+  const website = (body.website ?? "").trim();
 
-    const body = await readBodyLimited(req);
-    const payload = {
-      name: String(body?.name ?? "").trim(),
-      email: String(body?.email ?? "").trim(),
-      category: String(body?.category ?? "").trim(),
-      message: String(body?.message ?? "").trim(),
-    };
+  if (website) return NextResponse.json({ ok: true }, { status: 200 });
+  if (!name || !email || !category || !message) {
+    return NextResponse.json({ detail: "Missing required fields." }, { status: 400 });
+  }
+  if (!isValidEmail(email)) {
+    return NextResponse.json({ detail: "Invalid email address." }, { status: 400 });
+  }
 
-    // Validate _before_ calling upstream
-    const fieldErrors: Record<string, string> = {};
-    if (!payload.name) fieldErrors.name = "This field is required.";
-    if (!payload.email) fieldErrors.email = "This field is required.";
-    else if (!isValidEmail(payload.email)) fieldErrors.email = "Enter a valid email.";
-    if (!payload.category) fieldErrors.category = "This field is required.";
-    if (!payload.message) fieldErrors.message = "This field is required.";
-    if (Object.keys(fieldErrors).length) return noStore(fieldErrors, { status: 400 });
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;         // jash@jashtechno.com
+  const pass = process.env.SMTP_PASS;
+  const to   = process.env.CONTACT_TO_EMAIL;  // where you receive mail
 
-    const upstream = await fetchWithTimeout(`${base}/api/contact/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "jashtechno-contact-proxy",
-      },
-      body: JSON.stringify(payload),
-      cache: "no-store",
-    });
-
-    const { parsed, raw } = await readJsonSafe(upstream);
-
-    if (!upstream.ok) {
-      // Surface upstream error as-is (status preserved)
-      return noStore(parsed ?? { detail: raw || "Upstream error" }, { status: upstream.status });
-    }
-
-    // Success: return upstream JSON (or raw text) with same status
-    if (parsed) return noStore(parsed, { status: upstream.status });
-    return new NextResponse(raw, {
-      status: upstream.status,
-      headers: { "content-type": upstream.headers.get("content-type") ?? "text/plain", "cache-control": "no-store" },
-    });
-  } catch (e: any) {
-    return noStore(
-      { detail: "Proxy error: fetch failed", error: String(e?.message || e) },
-      { status: Number(e?.status) || 502 }
+  if (!host || !user || !pass || !to) {
+    return NextResponse.json(
+      { detail: "Server misconfigured: missing SMTP envs." },
+      { status: 500 }
     );
   }
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: false,        // 587 = STARTTLS (not SMTPS)
+    requireTLS: true,     // enforce TLS upgrade
+    auth: { user, pass },
+  });
+
+  // Verify in dev only (saves latency in prod)
+  if (process.env.NODE_ENV !== "production") {
+    try { await transporter.verify(); }
+    catch (e: any) {
+      console.error("SMTP verify failed:", e?.message || e);
+      return NextResponse.json(
+        { detail: "SMTP connection failed. Check host/port/user/pass." },
+        { status: 500 }
+      );
+    }
+  }
+
+  const subject = `New inquiry (${category}) from ${name}`;
+  const html = `
+    <h2>New Contact Inquiry</h2>
+    <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+    <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+    <p><strong>Category:</strong> ${escapeHtml(category)}</p>
+    <p><strong>Message:</strong></p>
+    <pre style="white-space:pre-wrap;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;">${escapeHtml(message)}</pre>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: `"Jash Techno" <${user}>`,  // Zoho requires From = authenticated mailbox or approved alias
+      to,
+      replyTo: email,
+      subject,
+      html,
+      text: `New Contact Inquiry
+
+Name: ${name}
+Email: ${email}
+Category: ${category}
+
+Message:
+${message}`,
+    });
+
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch (e: any) {
+    console.error("sendMail failed:", e?.message || e);
+    return NextResponse.json(
+      { detail: "Email send failed. If using Zoho, ensure From equals SMTP_USER and password is an App Password." },
+      { status: 500 }
+    );
+  }
+}
+
+/* ------------------------- Utils ------------------------- */
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
