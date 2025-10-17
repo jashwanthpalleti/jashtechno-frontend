@@ -1,18 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast"; // local Toaster so this file works standalone
 import { CheckCircleIcon, XCircleIcon, AlertTriangleIcon } from "lucide-react";
 
-const API_URL = "/api/contact"; // hits your Next.js proxy route
+const API_URL = "/api/contact"; // hits your Next.js API route
 
 async function readErrorMessage(res: Response) {
   const raw = await res.text();
   try {
     const data = raw ? JSON.parse(raw) : null;
     if (data && typeof data === "object") {
-      // Support DRF-style {field: ["err", ...]} and {detail: "..."}
-      if ("detail" in data && typeof (data as any).detail === "string") return (data as any).detail;
+      if ("detail" in (data as any) && typeof (data as any).detail === "string") {
+        return (data as any).detail;
+      }
       return (
         Object.entries(data)
           .map(([field, msgs]) =>
@@ -23,23 +24,39 @@ async function readErrorMessage(res: Response) {
     }
     if (typeof data === "string") return data;
   } catch {
-    // fall through
+    /* fall through */
   }
   return raw || "Unknown error.";
 }
 
 export default function ContactForm() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [category, setCategory] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [contactFullName, setContactFullName] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [category, setCategory] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+
+  // simple honeypot (bots often fill hidden fields)
+  const [website, setWebsite] = useState<string>("");
 
   const validEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-  const isValid = useMemo(
-    () => name.trim() && validEmail(email.trim()) && category.trim() && message.trim(),
-    [name, email, category, message]
-  );
+
+  // stricter client-side checks & length guards (protect your API a bit)
+  const isValid = useMemo(() => {
+    const n = contactFullName.trim();
+    const e = email.trim();
+    const c = category.trim();
+    const m = message.trim();
+    return (
+      n.length >= 2 &&
+      n.length <= 100 &&
+      validEmail(e) &&
+      c.length >= 2 &&
+      c.length <= 60 &&
+      m.length >= 5 &&
+      m.length <= 3000
+    );
+  }, [contactFullName, email, category, message]);
 
   const successToast = (msg: string) =>
     toast.custom(
@@ -68,25 +85,33 @@ export default function ContactForm() {
       { duration: 2500 }
     );
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    // block if honeypot is filled
+    if (website.trim()) {
+      // Pretend success so bots don’t learn there’s a honeypot
+      return successToast("Your message has been sent successfully!");
+    }
+
     if (!isValid) {
-      if (!name.trim() || !email.trim() || !category.trim() || !message.trim()) {
+      if (!contactFullName.trim() || !email.trim() || !category.trim() || !message.trim()) {
         return warnToast("Please fill all fields!");
       }
       if (!validEmail(email.trim())) return warnToast("Please enter a valid email address!");
+      return warnToast("Please check your inputs.");
     }
 
     const payload = {
-      name: name.trim(),
+      name: contactFullName.trim(),
       email: email.trim(),
       category: category.trim(),
       message: message.trim(),
+      website: website.trim(), // honeypot field (server can ignore/drop if present)
     };
 
-    // Timeout & abort: avoids “stuck” fetch when upstream is slow
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
       setLoading(true);
@@ -102,42 +127,67 @@ export default function ContactForm() {
       clearTimeout(timeout);
 
       if (res.ok) {
-        setName("");
+        setContactFullName("");
         setEmail("");
         setCategory("");
         setMessage("");
+        setWebsite("");
         successToast("Your message has been sent successfully!");
       } else {
         const msg = await readErrorMessage(res);
         errorToast(msg || `Request failed (${res.status})`);
-        // Helpful console for debugging function logs side-by-side
         console.error("Contact submit failed", { status: res.status, body: msg });
       }
     } catch (err: any) {
       clearTimeout(timeout);
-      console.error("Network error:", err?.message || err);
-      errorToast(
-        "Could not reach the server.\nIf this keeps happening, the API may be down or misconfigured."
-      );
+      const name = err?.name || "Error";
+      const msg =
+        name === "AbortError"
+          ? "Request timed out. Please try again."
+          : "Could not reach the server.\nIf this keeps happening, the API may be down or misconfigured.";
+      console.error("Network error:", name, err?.message || err);
+      errorToast(msg);
     } finally {
       setLoading(false);
     }
   }
 
+  // typed change handlers
+  const onNameChange = (e: React.ChangeEvent<HTMLInputElement>) => setContactFullName(e.target.value);
+  const onEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value);
+  const onCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => setCategory(e.target.value);
+  const onMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-yellow-50 px-4 py-10">
+      {/* Local Toaster so this file works immediately; remove if you add a global one in layout */}
+      <Toaster position="top-center" />
+
       <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-xl">
         <h1 className="text-center text-3xl font-extrabold text-blue-700 mb-8">
           Contact <span className="text-yellow-400">Jash Techno</span>
         </h1>
 
-        <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col space-y-4" noValidate>
+          {/* Honeypot (hidden from real users) */}
+          <input
+            name="website"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            className="hidden"
+          />
+
           <input
             type="text"
             placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={contactFullName}
+            onChange={onNameChange}
             autoComplete="name"
+            required
+            maxLength={100}
             className="border border-gray-300 rounded-lg px-4 py-2 text-black focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
 
@@ -145,8 +195,10 @@ export default function ContactForm() {
             type="email"
             placeholder="Email Address"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={onEmailChange}
             autoComplete="email"
+            required
+            maxLength={120}
             className="border border-gray-300 rounded-lg px-4 py-2 text-black focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
 
@@ -154,21 +206,26 @@ export default function ContactForm() {
             type="text"
             placeholder="Business Category (e.g. Restaurant, Smoke Shop)"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={onCategoryChange}
+            required
+            maxLength={60}
             className="border border-gray-300 rounded-lg px-4 py-2 text-black focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
 
           <textarea
             placeholder="Your Message"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={onMessageChange}
             rows={4}
+            required
+            maxLength={3000}
             className="border border-gray-300 rounded-lg px-4 py-2 text-black focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
 
           <button
             type="submit"
             disabled={loading || !isValid}
+            aria-disabled={loading || !isValid}
             className={`w-full rounded-lg py-3 font-bold text-white transition ${
               loading || !isValid ? "bg-blue-300 cursor-not-allowed" : "bg-blue-700 hover:bg-blue-800"
             }`}

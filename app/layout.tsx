@@ -1,45 +1,26 @@
-// app/layout.tsx
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import "./globals.css";
-import { Inter } from "next/font/google";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
 import { Toaster } from "react-hot-toast";
-import { SpeedInsights } from "@vercel/speed-insights/next"
-// ✅ Vercel Analytics + Speed Insights
-import { Analytics } from "@vercel/analytics/next";
 
-// …
-
-
-const inter = Inter({ subsets: ["latin"] });
+// ⬇️ Adjust this import to match your project
+// Common paths/names: "@/components/Navbar" or "@/components/NavBar"
+// Update the import path below to match the correct relative path and filename (case-sensitive)
+import Navbar from "./components/Navbar";
 
 export const metadata: Metadata = {
   title: "Jash Techno",
-  description: "Modern websites that grow your business.",
-  manifest: "/manifest.webmanifest",
+  description: "Web design & growth studio",
 };
 
-export const viewport: Viewport = {
-  themeColor: "#0EA5E9",
-};
-
+// app/layout.tsx
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        <Navbar /> 
+      <body suppressHydrationWarning>
+        <Navbar />
         {children}
-
-        {/* Toasts */}
-        <Toaster position="top-center" reverseOrder={false} />
-
-        {/* 📈 Analytics & performance (place near end of body) */}
-        <Analytics />
-        <SpeedInsights />
-
-        <Footer />
       </body>
     </html>
   );
 }
+
