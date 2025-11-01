@@ -1,11 +1,8 @@
 "use client";
 
-import Cup3D from "./Cup3D";
+import Cup3DSection from "./Cup3DSection";
 
-/**
- * Client-only wrapper to render the 3D scene.
- * Prevents SSR/hydration conflicts and recursion errors.
- */
+/** Client wrapper to render the 3D scene from a Server Component page. */
 export default function Cup3DClient() {
-  return <Cup3D />;
+  return <Cup3DSection />;
 }
