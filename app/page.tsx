@@ -44,15 +44,26 @@ export default function HomePage() {
                 We craft modern websites & digital solutions to grow your business.
               </motion.p>
 
+              {/* Buttons */}
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
-                className="mt-8"
+                className="mt-8 flex flex-wrap items-center gap-3"
               >
                 <AnimatedPressable onClick={() => router.push("/contact")}>
                   <div className="inline-block bg-yellow-400 hover:bg-yellow-300 text-black font-semibold py-3 px-8 rounded-lg shadow-md transition">
                     Get Started
+                  </div>
+                </AnimatedPressable>
+
+                {/* NEW: Pricing Plans button */}
+                <AnimatedPressable onClick={() => router.push("#")}>
+                  <div
+                    className="inline-block bg-white hover:bg-gray-100 text-sky-700 font-semibold py-3 px-8 rounded-lg shadow-md border border-sky-200 transition"
+                    aria-label="View Pricing Plans"
+                  >
+                    Pricing Plans
                   </div>
                 </AnimatedPressable>
               </motion.div>
@@ -166,7 +177,7 @@ export default function HomePage() {
           <h2 className="text-3xl md:text-4xl font-bold mb-8">
             Let’s build your website today 🚀
           </h2>
-        <AnimatedPressable onClick={() => router.push("/contact")}>
+          <AnimatedPressable onClick={() => router.push("/contact")}>
             <div className="bg-white text-sky-700 font-bold py-3 px-10 rounded-full shadow-lg hover:bg-gray-100 transition inline-block">
               Contact Us
             </div>

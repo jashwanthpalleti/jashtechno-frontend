@@ -22,18 +22,20 @@ export default function WorksPage() {
         <div className="flex flex-col gap-6 md:gap-8">
           {/* Bagel Store */}
           <ProjectCard
-            href="/store" // change if your detail page is different
+            href="/store"
             title="🥯 Bagel Store"
             icon={<IoCafeOutline className="text-3xl text-[#F59E0B]" />}
             text="A modern black & white themed website design for a Bagel shop."
             clickable
           />
 
-          {/* Coffee Shop (coming soon) */}
+          {/* Coffee House (3D cup viewer) */}
           <ProjectCard
-            title="☕ Coffee Shop"
+            href="/coffee-shop"
+            title="☕ Coffee House"
             icon={<IoCafeOutline className="text-3xl text-[#3A8DC1]" />}
-            text="(Coming soon) Stylish online presence for a cozy café."
+            text="Interactive homepage with a 3D cappuccino cup (GLB) you can rotate."
+            clickable
           />
 
           {/* Portfolio (coming soon) */}
@@ -79,5 +81,11 @@ function ProjectCard({
     </div>
   );
 
-  return clickable && href ? <Link href={href}>{content}</Link> : content;
+  return clickable && href ? (
+    <Link href={href} prefetch>
+      {content}
+    </Link>
+  ) : (
+    content
+  );
 }
