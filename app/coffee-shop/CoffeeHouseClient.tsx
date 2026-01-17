@@ -169,7 +169,6 @@ function TableSet({
   );
 
   const { chairW, chairD } = useMemo(() => {
-    // Use a cloned, invisible root to compute bounds
     const rootClone = chairRoot.clone(true);
     const box = new THREE.Box3().setFromObject(rootClone);
     const size = new THREE.Vector3();
@@ -180,21 +179,14 @@ function TableSet({
   // --- Spacing math (based on real bounds) ---
   const halfTable = TABLE_WIDTH / 2;
 
-  // Clearances you can tweak
-  const TABLE_CLEARANCE = 0.18; // free space between table edge and chair edge
-  const CHAIR_CLEARANCE = 0.08; // free space between chairs themselves
-  const CORNER_CLEAR = 0.06;    // extra guard so corners never kiss
+  // Clearances
+  const TABLE_CLEARANCE = 0.18;
+  const CORNER_CLEAR = 0.06;
 
-  // Chairs at the ends (±X): distance from table center
-  const endX =
-    halfTable + TABLE_CLEARANCE + chairD / 2 + CORNER_CLEAR;
+  const endX = halfTable + TABLE_CLEARANCE + chairD / 2 + CORNER_CLEAR;
+  const sideZ = halfTable + TABLE_CLEARANCE + chairW / 2 + CORNER_CLEAR;
 
-  // Chairs at the sides (±Z): distance from table center
-  const sideZ =
-    halfTable + TABLE_CLEARANCE + chairW / 2 + CORNER_CLEAR;
-
-  // Tiny outward splay to look natural (keeps faces toward table)
-  const ROT_SPLAY = 0.0; // set to e.g. 0.08 if you want a subtle angle
+  const ROT_SPLAY = 0.0;
 
   // --- Surface ray for items on table ---
   const containerRef = useRef<THREE.Group>(null);
@@ -234,18 +226,15 @@ function TableSet({
     if ([yRose, yCup, yCard].every(Number.isFinite)) setYs({ rose: yRose, cup: yCup, card: yCard });
   });
 
-  // Hover cursor (leave in case you add interactivity later)
   const [hovered, setHovered] = useState(false);
   useCursor(hovered);
 
   return (
     <group ref={containerRef} position={position}>
-      {/* Table */}
       <group ref={tableRef}>
         <TableNorm width={TABLE_WIDTH} />
       </group>
 
-      {/* Items on table (auto-dropped to surface) */}
       {ys && (
         <>
           <RoseNorm position={[0, ys.rose + SURFACE_EPS, 0]} height={ROSE_HEIGHT} />
@@ -256,66 +245,26 @@ function TableSet({
         </>
       )}
 
-      {/* Chairs — auto-spaced so they don't touch table or each other */}
-      {/* Left end */}
-      <ChairNorm
-        position={[-endX, 0, 0]}
-        rotation={[0, Math.PI / 2 + ROT_SPLAY, 0]}
-      />
-      {/* Right end */}
-      <ChairNorm
-        position={[endX, 0, 0]}
-        rotation={[0, -Math.PI / 2 - ROT_SPLAY, 0]}
-      />
-      {/* Back side (facing table) */}
-      <ChairNorm
-        position={[0, 0, -sideZ]}
-        rotation={[0, 0 + ROT_SPLAY, 0]}
-      />
-      {/* Front side (facing table) */}
-      <ChairNorm
-        position={[0, 0, sideZ]}
-        rotation={[0, Math.PI - ROT_SPLAY, 0]}
-      />
+      <ChairNorm position={[-endX, 0, 0]} rotation={[0, Math.PI / 2 + ROT_SPLAY, 0]} />
+      <ChairNorm position={[ endX, 0, 0]} rotation={[0,-Math.PI / 2 - ROT_SPLAY, 0]} />
+      <ChairNorm position={[0, 0, -sideZ]} rotation={[0, 0 + ROT_SPLAY, 0]} />
+      <ChairNorm position={[0, 0,  sideZ]} rotation={[0, Math.PI - ROT_SPLAY, 0]} />
     </group>
   );
 }
 
 /* ============== Room ============== */
-function RoomShell({
-  totalWidth,
-  totalDepth,
-}: {
-  totalWidth: number;
-  totalDepth: number;
-}) {
+function RoomShell({ totalWidth, totalDepth }: { totalWidth: number; totalDepth: number }) {
   const wallW = totalWidth + ROOM_MARGIN * 2;
   const wallD = totalDepth + ROOM_MARGIN * 2;
 
   const halfW = wallW / 2;
   const halfD = wallD / 2;
 
-  const baseMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: WALL_BASE, roughness: 0.96 }),
-    []
-  );
-  const trimMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: TRIM_COLOR, roughness: 0.9 }),
-    []
-  );
-  const floorMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: FLOOR_COLOR,
-        roughness: 0.7,
-        metalness: 0.05,
-      }),
-    []
-  );
-  const stripeMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: STRIPE_COLOR, roughness: 0.95 }),
-    []
-  );
+  const baseMat  = useMemo(() => new THREE.MeshStandardMaterial({ color: WALL_BASE,  roughness: 0.96 }), []);
+  const trimMat  = useMemo(() => new THREE.MeshStandardMaterial({ color: TRIM_COLOR,  roughness: 0.9 }), []);
+  const floorMat = useMemo(() => new THREE.MeshStandardMaterial({ color: FLOOR_COLOR, roughness: 0.7, metalness: 0.05 }), []);
+  const stripeMat= useMemo(() => new THREE.MeshStandardMaterial({ color: STRIPE_COLOR, roughness: 0.95 }), []);
 
   const STRIPE_H = 0.18;
   const stripeY = ROOM_HEIGHT - STRIPE_H / 2 - 0.04;
@@ -333,21 +282,11 @@ function RoomShell({
         <planeGeometry args={[wallW, ROOM_HEIGHT]} />
         <primitive object={baseMat} attach="material" />
       </mesh>
-      <mesh
-        rotation={[0, Math.PI / 2, 0]}
-        position={[-halfW, ROOM_HEIGHT / 2, 0]}
-        receiveShadow
-        castShadow
-      >
+      <mesh rotation={[0, Math.PI / 2, 0]} position={[-halfW, ROOM_HEIGHT / 2, 0]} receiveShadow castShadow>
         <planeGeometry args={[wallD, ROOM_HEIGHT]} />
         <primitive object={baseMat} attach="material" />
       </mesh>
-      <mesh
-        rotation={[0, -Math.PI / 2, 0]}
-        position={[halfW, ROOM_HEIGHT / 2, 0]}
-        receiveShadow
-        castShadow
-      >
+      <mesh rotation={[0, -Math.PI / 2, 0]} position={[halfW, ROOM_HEIGHT / 2, 0]} receiveShadow castShadow>
         <planeGeometry args={[wallD, ROOM_HEIGHT]} />
         <primitive object={baseMat} attach="material" />
       </mesh>
@@ -357,17 +296,11 @@ function RoomShell({
         <planeGeometry args={[wallW, STRIPE_H]} />
         <primitive object={stripeMat} attach="material" />
       </mesh>
-      <mesh
-        rotation={[0, Math.PI / 2, 0]}
-        position={[-halfW + 0.001, stripeY, 0]}
-      >
+      <mesh rotation={[0, Math.PI / 2, 0]} position={[-halfW + 0.001, stripeY, 0]}>
         <planeGeometry args={[wallD, STRIPE_H]} />
         <primitive object={stripeMat} attach="material" />
       </mesh>
-      <mesh
-        rotation={[0, -Math.PI / 2, 0]}
-        position={[halfW - 0.001, stripeY, 0]}
-      >
+      <mesh rotation={[0, -Math.PI / 2, 0]} position={[halfW - 0.001, stripeY, 0]}>
         <planeGeometry args={[wallD, STRIPE_H]} />
         <primitive object={stripeMat} attach="material" />
       </mesh>
@@ -391,14 +324,9 @@ function RoomShell({
 
 /* ============== Wall Copy + Nav + Logo + Sconce ============== */
 function WallCopy({
-  wallW,
-  wallD,
-  showNav,
-  onOpenTab,
+  wallW, wallD, showNav, onOpenTab,
 }: {
-  wallW: number;
-  wallD: number;
-  showNav: boolean;
+  wallW: number; wallD: number; showNav: boolean;
   onOpenTab: (tab: Exclude<OverlayTab, null>) => void;
 }) {
   const isMobile = useIsMobile();
@@ -409,18 +337,16 @@ function WallCopy({
   const heroMaxWidth = wallW - WALL_TEXT_GUTTER * 2.4;
   const sideMaxWidth = wallD - WALL_TEXT_GUTTER * 2.4;
 
-  // Responsive sizes
   const fsHero = isMobile ? 0.18 : 0.24;
   const fsBody = isMobile ? 0.085 : 0.1;
-  const navDF = isMobile ? 10 : 10;
+  const navDF  = isMobile ? 10 : 10;
 
   const logoW = isMobile ? 0.55 : 0.7;
   const logoH = isMobile ? 0.36 : 0.46;
 
-  // positions on front wall
-  const navY = 0.25;
+  const navY  = 0.25;
   const logoY = -0.09;
-  const tagY = -0.48;
+  const tagY  = -0.48;
 
   const logoRef = useRef<THREE.Group>(null);
   const spotRef = useRef<THREE.SpotLight>(null);
@@ -447,24 +373,13 @@ function WallCopy({
             transform
             distanceFactor={navDF}
             position={[0, navY, Z_PAD]}
-            style={{
-              pointerEvents: "auto",
-              touchAction: "manipulation",
-              WebkitTapHighlightColor: "transparent",
-              userSelect: "none",
-            }}
+            style={{ pointerEvents: "auto", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", userSelect: "none" }}
           >
-            <nav
-              className={`flex justify-center items-center gap-0.3 ${
-                isMobile ? "text-[8px]" : "text-[6px]"
-              } font-semibold text-stone-850`}
-            >
+            <nav className={`flex justify-center items-center gap-0.3 ${isMobile ? "text-[8px]" : "text-[6px]"} font-semibold text-stone-850`}>
               {["Menu", "Story", "Achievements", "Visit"].map((label) => (
                 <button
                   key={label}
-                  onClick={() =>
-                    onOpenTab(label.toLowerCase() as any)
-                  }
+                  onClick={() => onOpenTab(label.toLowerCase() as any)}
                   className="relative px-3 py-1 hover:underline hover:text-amber-700 transition"
                 >
                   {label}
@@ -480,61 +395,24 @@ function WallCopy({
             <planeGeometry args={[logoW + 0.05, logoH + 0.05]} />
             <meshStandardMaterial color="#ffffff" />
           </mesh>
-          <Image
-            url="/images/logocoffee.png"
-            position={[0, 0, 0]}
-            scale={[logoW, logoH]}
-            toneMapped={false}
-          />
+          <Image url="/images/logocoffee.png" position={[0, 0, 0]} scale={[logoW, logoH]} toneMapped={false} />
         </group>
 
         {/* Sconce above the logo */}
         <group position={[0, logoY + logoH / 2 + 0.22, Z_PAD + 0.05]}>
           <mesh position={[0, -0.02, 0]}>
             <cylinderGeometry args={[0.06, 0.06, 0.04, 24]} />
-            <meshStandardMaterial
-              color="#6b6156"
-              metalness={0.6}
-              roughness={0.3}
-            />
+            <meshStandardMaterial color="#6b6156" metalness={0.6} roughness={0.3} />
           </mesh>
           <mesh position={[0, 0.06, 0]}>
             <sphereGeometry args={[0.055, 20, 20]} />
-            <meshStandardMaterial
-              color="#ffffff"
-              emissive="#ffd7a1"
-              emissiveIntensity={1.0}
-              roughness={0.4}
-            />
+            <meshStandardMaterial color="#ffffff" emissive="#ffd7a1" emissiveIntensity={1.0} roughness={0.4} />
           </mesh>
-          <spotLight
-            ref={spotRef}
-            position={[0, 0.12, 0.6]}
-            intensity={1.8}
-            color={"#ffd7a1"}
-            angle={0.55}
-            penumbra={0.6}
-            distance={3.5}
-            castShadow
-          />
-          <pointLight
-            position={[0, 0.06, 0.08]}
-            intensity={0.6}
-            distance={1.6}
-            decay={2.0}
-            color={"#ffd7a1"}
-          />
+          <spotLight ref={spotRef} position={[0, 0.12, 0.6]} intensity={1.8} color={"#ffd7a1"} angle={0.55} penumbra={0.6} distance={3.5} castShadow />
+          <pointLight position={[0, 0.06, 0.08]} intensity={0.6} distance={1.6} decay={2.0} color={"#ffd7a1"} />
         </group>
 
-        {/* Tagline */}
-        <Text
-          fontSize={fsHero}
-          position={[0, tagY, Z_PAD]}
-          color="#2B1E16"
-          maxWidth={heroMaxWidth}
-          anchorX="center"
-          anchorY="top"
-        >
+        <Text fontSize={fsHero} position={[0, tagY, Z_PAD]} color="#2B1E16" maxWidth={heroMaxWidth} anchorX="center" anchorY="top">
           Every cup tells a story
         </Text>
         <Text
@@ -551,175 +429,61 @@ function WallCopy({
       </group>
 
       {/* LEFT wall: photos + quotes */}
-      <group
-        rotation={[0, Math.PI / 2, 0]}
-        position={[-halfW + Z_PAD, ROOM_HEIGHT * 0.65, 0]}
-      >
-        <Text
-          fontSize={isMobile ? 0.16 : 0.2}
-          color="#2B1E16"
-          maxWidth={sideMaxWidth}
-          anchorX="left"
-          anchorY="top"
-          position={[0.3, 0.3, Z_PAD]}
-        >
+      <group rotation={[0, Math.PI / 2, 0]} position={[-(wallW/2) + Z_PAD, ROOM_HEIGHT * 0.65, 0]}>
+        <Text fontSize={isMobile ? 0.16 : 0.2} color="#2B1E16" maxWidth={sideMaxWidth} anchorX="left" anchorY="top" position={[0.3, 0.3, Z_PAD]}>
           Coffee Vibes
         </Text>
 
         <group position={[-1.3, -0.28, Z_PAD] as [number, number, number]}>
-          <Image
-            url="/images/coffee1.jpg"
-            position={[
-              -(photoW / 2 + photoGap / 2),
-              0,
-              Z_PAD,
-            ] as [number, number, number]}
-            scale={[photoW, photoH] as [number, number]}
-          />
-          <Image
-            url="/images/coffee2.jpg"
-            position={[
-              photoW / 2 + photoGap / 2,
-              0,
-              Z_PAD,
-            ] as [number, number, number]}
-            scale={[photoW, photoH] as [number, number]}
-          />
-          {/* frames */}
-          <mesh
-            position={[
-              -(photoW / 2 + photoGap / 2),
-              0,
-              Z_PAD - 0.001,
-            ] as [number, number, number]}
-          >
+          <Image url="/images/coffee1.jpg" position={[-(photoW / 2 + photoGap / 2), 0, Z_PAD] as [number, number, number]} scale={[photoW, photoH] as [number, number]} />
+          <Image url="/images/coffee2.jpg" position={[ (photoW / 2 + photoGap / 2), 0, Z_PAD] as [number, number, number]} scale={[photoW, photoH] as [number, number]} />
+          <mesh position={[-(photoW / 2 + photoGap / 2), 0, Z_PAD - 0.001] as [number, number, number]}>
             <planeGeometry args={[photoW + 0.02, photoH + 0.02]} />
             <meshStandardMaterial color="#ffffff" />
           </mesh>
-          <mesh
-            position={[
-              photoW / 2 + photoGap / 2,
-              0,
-              Z_PAD - 0.001,
-            ] as [number, number, number]}
-          >
+          <mesh position={[ (photoW / 2 + photoGap / 2), 0, Z_PAD - 0.001] as [number, number, number]}>
             <planeGeometry args={[photoW + 0.02, photoH + 0.02]} />
             <meshStandardMaterial color="#ffffff" />
           </mesh>
         </group>
 
         <group position={[0, -0.95, Z_PAD]}>
-          <Text
-            fontSize={isMobile ? 0.095 : 0.11}
-            color="#2B1E16"
-            anchorX="left"
-            anchorY="top"
-            maxWidth={sideMaxWidth}
-            lineHeight={1.25}
-            position={[0, 0.9, Z_PAD]}
-          >
+          <Text fontSize={isMobile ? 0.095 : 0.11} color="#2B1E16" anchorX="left" anchorY="top" maxWidth={sideMaxWidth} lineHeight={1.25} position={[0, 0.9, Z_PAD]}>
             “First sip, deep breath, new chapter.”
           </Text>
-          <Text
-            position={[0, 0.7, Z_PAD]}
-            fontSize={isMobile ? 0.095 : 0.11}
-            color="#2B1E16"
-            anchorX="left"
-            anchorY="top"
-            maxWidth={sideMaxWidth}
-            lineHeight={1.25}
-          >
+          <Text position={[0, 0.7, Z_PAD]} fontSize={isMobile ? 0.095 : 0.11} color="#2B1E16" anchorX="left" anchorY="top" maxWidth={sideMaxWidth} lineHeight={1.25}>
             “Espresso yourself — the world will catch up.”
           </Text>
-          <Text
-            position={[0, 0.5, Z_PAD]}
-            fontSize={isMobile ? 0.095 : 0.11}
-            color="#2B1E16"
-            anchorX="left"
-            anchorY="top"
-            maxWidth={sideMaxWidth}
-            lineHeight={1.25}
-          >
+          <Text position={[0, 0.5, Z_PAD]} fontSize={isMobile ? 0.095 : 0.11} color="#2B1E16" anchorX="left" anchorY="top" maxWidth={sideMaxWidth} lineHeight={1.25}>
             “Brewed for kindness. Served with patience.”
           </Text>
-          <Text
-            position={[0, -0.6, Z_PAD]}
-            fontSize={isMobile ? 0.095 : 0.11}
-            color="#2B1E16"
-            anchorX="left"
-            anchorY="top"
-            maxWidth={sideMaxWidth}
-            lineHeight={1.25}
-          >
+          <Text position={[0, -0.6, Z_PAD]} fontSize={isMobile ? 0.095 : 0.11} color="#2B1E16" anchorX="left" anchorY="top" maxWidth={sideMaxWidth} lineHeight={1.25}>
             “Small cups. Big conversations.”
           </Text>
         </group>
       </group>
 
       {/* RIGHT wall: story */}
-      <group
-        rotation={[0, -Math.PI / 2, 0]}
-        position={[halfW - Z_PAD, ROOM_HEIGHT * 0.70, 0]}
-      >
-        <Text
-          fontSize={isMobile ? 0.10: 0.2}
-          color="#2B1E16"
-          maxWidth={sideMaxWidth}
-          anchorX="left"
-          anchorY="top"
-          position={[-1, 0.2, Z_PAD]}
-        >
+      <group rotation={[0, -Math.PI / 2, 0]} position={[ (wallW/2) - Z_PAD, ROOM_HEIGHT * 0.70, 0]}>
+        <Text fontSize={isMobile ? 0.10: 0.2} color="#2B1E16" maxWidth={sideMaxWidth} anchorX="left" anchorY="top" position={[-1, 0.2, Z_PAD]}>
           Our Story
         </Text>
-        <Text
-          position={[-2, -0.2, Z_PAD]}
-          fontSize={isMobile ? 0.09 : 0.105}
-          color="#5B4636"
-          maxWidth={sideMaxWidth * 0.88}
-          anchorX="left"
-          anchorY="top"
-          lineHeight={1.25}
-        >
+        <Text position={[-2, -0.2, Z_PAD]} fontSize={isMobile ? 0.09 : 0.105} color="#5B4636" maxWidth={sideMaxWidth * 0.88} anchorX="left" anchorY="top" lineHeight={1.25}>
           We began with a tiny roaster, a borrowed bar, and a belief: coffee is
           hospitality. Farmers first, flavors second, trends last. Today we
           still hand-tune each batch and pull every shot with care.
         </Text>
-        <Text
-          position={[-2, -0.62, Z_PAD]}
-          fontSize={isMobile ? 0.09 : 0.1}
-          color="#2B1E16"
-          maxWidth={sideMaxWidth}
-          anchorX="left"
-          anchorY="top"
-        >
+        <Text position={[-2, -0.62, Z_PAD]} fontSize={isMobile ? 0.09 : 0.1} color="#2B1E16" maxWidth={sideMaxWidth} anchorX="left" anchorY="top">
           • Traceable sourcing   • Third-place community   • Sustainable steps
         </Text>
       </group>
 
       {/* BACK wall: feel-good line */}
-      <group
-        rotation={[0, Math.PI, 0]}
-        position={[0, ROOM_HEIGHT * 0.62, halfD - Z_PAD]}
-      >
-        <Text
-          fontSize={isMobile ? 0.16 : 0.2}
-          color="#2B1E16"
-          maxWidth={heroMaxWidth}
-          anchorX="center"
-          anchorY="top"
-          position={[0, 0, Z_PAD]}
-        >
+      <group rotation={[0, Math.PI, 0]} position={[0, ROOM_HEIGHT * 0.62, (wallD/2) - Z_PAD]}>
+        <Text fontSize={isMobile ? 0.16 : 0.2} color="#2B1E16" maxWidth={heroMaxWidth} anchorX="center" anchorY="top" position={[0, 0, Z_PAD]}>
           Brew kindness daily
         </Text>
-        <Text
-          position={[0, -0.22, Z_PAD]}
-          fontSize={isMobile ? 0.09 : 0.11}
-          color="#5B4636"
-          maxWidth={heroMaxWidth * 0.82}
-          anchorX="center"
-          anchorY="top"
-          lineHeight={1.25}
-        >
+        <Text position={[0, -0.22, Z_PAD]} fontSize={isMobile ? 0.09 : 0.11} color="#5B4636" maxWidth={heroMaxWidth * 0.82} anchorX="center" anchorY="top" lineHeight={1.25}>
           Good coffee. Good company. Good day.
         </Text>
       </group>
@@ -728,11 +492,7 @@ function WallCopy({
 }
 
 /* ============== Camera snap helpers ============== */
-function RefitShortcuts({
-  refs,
-}: {
-  refs: React.MutableRefObject<(THREE.Object3D | null)[]>;
-}) {
+function RefitShortcuts({ refs }: { refs: React.MutableRefObject<(THREE.Object3D | null)[]> }) {
   const bounds = useBounds();
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
@@ -752,10 +512,7 @@ function RefitShortcuts({
 
 /* ============== Static room + walls ============== */
 function StaticRoomAndText({
-  totalWidth,
-  totalDepth,
-  showNav,
-  onOpenTab,
+  totalWidth, totalDepth, showNav, onOpenTab,
 }: {
   totalWidth: number;
   totalDepth: number;
@@ -775,61 +532,29 @@ function StaticRoomAndText({
   );
 }
 
-function SeatingGrid({
-  positions,
-}: {
-  positions: [number, number, number][];
-}) {
-  return (
-    <>
-      {positions.map((pos, i) => (
-        <TableSet key={i} position={pos} />
-      ))}
-    </>
-  );
+function SeatingGrid({ positions }: { positions: [number, number, number][] }) {
+  return <>{positions.map((pos, i) => <TableSet key={i} position={pos} />)}</>;
 }
 
 /* ============== Big room ============== */
-function BigRoom({
-  onOpenTab,
-  showNav,
-}: {
-  onOpenTab: (tab: Exclude<OverlayTab, null>) => void;
-  showNav: boolean;
-}) {
+function BigRoom({ onOpenTab, showNav }: { onOpenTab: (tab: Exclude<OverlayTab, null>) => void; showNav: boolean; }) {
   const positions: [number, number, number][] = [];
   const totalWidth = (COLS - 1) * COL_SPACING;
   const totalDepth = (ROWS - 1) * ROW_SPACING;
 
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      positions.push([
-        c * COL_SPACING - totalWidth / 2,
-        0,
-        r * ROW_SPACING - totalDepth / 2,
-      ]);
+      positions.push([ c * COL_SPACING - totalWidth / 2, 0, r * ROW_SPACING - totalDepth / 2 ]);
     }
   }
 
-  // Snap targets
-  const anchorHero = useRef<THREE.Group>(null);
+  const anchorHero  = useRef<THREE.Group>(null);
   const anchorStory = useRef<THREE.Group>(null);
-  const anchorBack = useRef<THREE.Group>(null);
-  const snapRefs = useRef<(THREE.Object3D | null)[]>([
-    null,
-    null,
-    null,
-    null,
-  ]);
-  const bounds = useBounds();
+  const anchorBack  = useRef<THREE.Group>(null);
+  const snapRefs = useRef<(THREE.Object3D | null)[]>([null, null, null, null]);
 
   useEffect(() => {
-    snapRefs.current = [
-      anchorHero.current,
-      anchorHero.current,
-      anchorStory.current,
-      anchorBack.current,
-    ];
+    snapRefs.current = [anchorHero.current, anchorHero.current, anchorStory.current, anchorBack.current];
   }, []);
 
   const wallW = totalWidth + ROOM_MARGIN * 2;
@@ -839,31 +564,20 @@ function BigRoom({
 
   return (
     <group>
-      <group ref={anchorHero} position={[0, 0, -halfD + 0.01]} />
+      <group ref={anchorHero}  position={[0, 0, -halfD + 0.01]} />
       <group ref={anchorStory} position={[halfW - 0.01, 0, 0]} />
-      <group ref={anchorBack} position={[0, 0, halfD - 0.01]} />
+      <group ref={anchorBack}  position={[0, 0,  halfD - 0.01]} />
 
       <hemisphereLight intensity={0.65} groundColor={"#7a6c5f"} />
       <directionalLight position={[5, 4.4, 5]} intensity={1.05} castShadow />
 
-      <StaticRoomAndText
-        totalWidth={totalWidth}
-        totalDepth={totalDepth}
-        showNav={showNav}
-        onOpenTab={onOpenTab}
-      />
+      <StaticRoomAndText totalWidth={totalWidth} totalDepth={totalDepth} showNav={showNav} onOpenTab={onOpenTab} />
 
       <Suspense fallback={null}>
         <SeatingGrid positions={positions} />
       </Suspense>
 
-      <ContactShadows
-        position={[0, -0.001, 0]}
-        opacity={0.33}
-        scale={Math.max(totalWidth, totalDepth) + 12}
-        blur={2.4}
-        far={6.8}
-      />
+      <ContactShadows position={[0, -0.001, 0]} opacity={0.33} scale={Math.max(totalWidth, totalDepth) + 12} blur={2.4} far={6.8} />
 
       <RefitShortcuts refs={snapRefs} />
     </group>
@@ -872,14 +586,8 @@ function BigRoom({
 
 /* ============== Overlay (pages) ============== */
 function OverlayShell({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
+  title, children, onClose,
+}: { title: string; children: React.ReactNode; onClose: () => void; }) {
   return (
     <>
       <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm" onClick={onClose} />
@@ -887,10 +595,7 @@ function OverlayShell({
         <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-white/30 bg-white shadow-2xl">
           <div className="flex items-center justify-between border-b px-5 py-3">
             <h3 className="text-lg font-bold text-stone-900">{title}</h3>
-            <button
-              onClick={onClose}
-              className="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-stone-800"
-            >
+            <button onClick={onClose} className="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-stone-800">
               Close
             </button>
           </div>
@@ -921,10 +626,7 @@ function MenuContent() {
           <p className="text-sm text-stone-600">{d.note}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {["House favorite", "Seasonal", "Single-origin"].map((t) => (
-              <span
-                key={t}
-                className="rounded-full bg-emerald-600/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/30"
-              >
+              <span key={t} className="rounded-full bg-emerald-600/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/30">
                 {t}
               </span>
             ))}
@@ -983,14 +685,12 @@ function VisitContent() {
   );
 }
 
-/* ============== Page ============== */
-export default function CoffeeHouseWallWritten() {
+/* ============== Page shell ============== */
+export default function CoffeeHouseClient() {
   const isMobile = useIsMobile();
   const [overlayTab, setOverlayTab] = useState<OverlayTab>(null);
 
-  const cameraPos: [number, number, number] = isMobile
-    ? [4.2, 2.2, 6.4]
-    : [5.2, 2.4, 7.0];
+  const cameraPos: [number, number, number] = isMobile ? [4.2, 2.2, 6.4] : [5.2, 2.4, 7.0];
   const fov = isMobile ? 55 : 45;
 
   return (
@@ -998,13 +698,10 @@ export default function CoffeeHouseWallWritten() {
       {overlayTab && (
         <OverlayShell
           title={
-            overlayTab === "menu"
-              ? "Coffee House • Menu"
-              : overlayTab === "story"
-              ? "Coffee House • Story"
-              : overlayTab === "achievements"
-              ? "Coffee House • Achievements"
-              : "Coffee House • Visit"
+            overlayTab === "menu" ? "Coffee House • Menu" :
+            overlayTab === "story" ? "Coffee House • Story" :
+            overlayTab === "achievements" ? "Coffee House • Achievements" :
+            "Coffee House • Visit"
           }
           onClose={() => setOverlayTab(null)}
         >

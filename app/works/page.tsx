@@ -38,6 +38,15 @@ export default function WorksPage() {
             clickable
           />
 
+          {/* Insight360 Dashboard */}
+          <ProjectCard
+            href="/insight360"
+            title="📊 Insight360 Dashboard"
+            icon={<IoGlobeOutline className="text-3xl text-[#3A8DC1]" />}
+            text="Real-time network telemetry dashboard with live WebSocket streaming and interactive 3D visuals."
+            clickable
+          />
+
           {/* Portfolio (coming soon) */}
           <ProjectCard
             title="🎨 Portfolio"
