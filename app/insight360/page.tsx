@@ -18,7 +18,7 @@ export default function Insight360Page() {
           </p>
         </header>
 
-        <div className="rounded-2xl overflow-hidden border border-[#E6EEF9] shadow-[0_12px_28px_rgba(58,141,193,0.18)]">
+        <div className="rounded-2xl overflow-hidden border border-[#E6EEF9] shadow-[0_12px_28px_rgba(58,141,193,0.18)] bg-white">
           <iframe
             src="/insight360/embed"
             className="w-full h-[calc(100vh-220px)]"
