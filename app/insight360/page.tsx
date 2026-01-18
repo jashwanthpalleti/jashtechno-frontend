@@ -20,7 +20,7 @@ export default function Insight360Page() {
 
         <div className="rounded-2xl overflow-hidden border border-[#E6EEF9] shadow-[0_12px_28px_rgba(58,141,193,0.18)]">
           <iframe
-            src="https://jashtechno-frontend-git-main-jashwanthpalletis-projects.vercel.app/insight360"
+            src="/insight360/embed"
             className="w-full h-[calc(100vh-220px)]"
             loading="lazy"
             allow="fullscreen"
