@@ -11,12 +11,16 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Hide navbar on portfolio page
+  if (pathname === "/works/portfolio") return null;
+
   const links = [
     { label: "Home", href: "/" },
     { label: "Our Works", href: "/works" },
     { label: "About Us", href: "/about" },
   ];
 
+  // ...rest of your file is unchanged
   // Force route to /contact to avoid any stray rewrites
   const goContact = (e?: React.MouseEvent) => {
     e?.preventDefault();
